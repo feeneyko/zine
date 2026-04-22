@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Points Game — Zine Arranger</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,900;1,400;1,900&family=Oswald:wght@200;300;400;500;600;700&display=swap');
+
+:root{
+  --cream:#ede8db;--ink:#111;
+  /* brand colors */
+  --united:#002244;--united2:#1414D2;
+  --cathay:#00645A;--cathay2:#E70013;
+  --aa:#13AFEB;--aa2:#45596A;
+  --delta:#C8102E;--delta2:#003A70;
+  --virgin:#DA0630;--virgin2:#101921;
+  --af:#002157;--af2:#F71D25;
+  --klm:#00A1E4;
+  --aircan:#D82F2E;
+  --hyatt:#004F9F;--hyatt2:#CEA84C;
+  --marriott:#FF9662;--marriott2:#1C1C1C;
+  --hilton:#003087;
+  --choice:#E26812;--choice2:#FFC52D;
+  --chase:#117ACA;
+  --amex:#002663;--amexgold:#C9A227;
+  --citi:#003A72;--citi2:#DB230B;
+  --bilt:#1a1a1a;
+  --W:5in;--H:7.25in
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#908a7e;display:flex;flex-wrap:wrap;justify-content:center;gap:12px;padding:24px 10px}
+
+.z{width:var(--W);height:var(--H);position:relative;overflow:hidden;background:var(--cream);box-shadow:1px 2px 8px rgba(0,0,0,.15);page-break-after:always;page-break-inside:avoid}
+/* grain on every page */
+.z::after{content:'';position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect x='0' y='0' width='1' height='1' fill='%23000' opacity='.035'/%3E%3Crect x='2' y='3' width='1' height='1' fill='%23000' opacity='.025'/%3E%3C/svg%3E");pointer-events:none;z-index:50}
+
+.XX{font-family:'Anton',sans-serif;text-transform:uppercase}
+.OS{font-family:'Oswald',sans-serif;text-transform:uppercase}
+.se{font-family:'Playfair Display',serif}
+.mo{font-family:'Space Mono',monospace}
+
+/* misregistration */
+.mis{position:relative;display:inline-block}
+.mis::before{content:attr(data-t);position:absolute;top:2px;left:3px;opacity:.35;z-index:0}
+
+/* halftone generator */
+.ht{background-image:radial-gradient(circle,.8px,.8px,transparent .8px);background-size:4px 4px}
+
+@media print{body{background:none;padding:0;gap:0}.z{box-shadow:none}}
+
+/* ═══ PRINT IMPOSITION LAYOUT (saddle-stitch, 20pp on 5 sheets, 11×8.5 landscape) ═══ */
+@page { size: 11in 8.5in; margin: 0; }
+
+/* override the on-screen body layout that was inherited from the original stylesheet */
+body{
+  background:#908a7e;
+  margin:0;padding:16px 0;
+  display:block;
+}
+
+/* hide the original source pages — they're only data for the JS imposer */
+body > .z { display: none !important; }
+body > .zimg { display: none !important; }
+
+/* full-spread image page (10×7.25) — one per sheet, no spine */
+.sheet.image-sheet{ gap:0; }
+.zimg-slot{
+  width:10in; height:7.25in;
+  flex:0 0 auto;
+  background-repeat:no-repeat;
+  background-size:cover;
+  background-position:center;
+  box-shadow:0 0 0 .5pt rgba(0,0,0,.25);
+  position:relative;
+}
+.zimg-slot .credit{
+  position:absolute;bottom:10px;right:14px;z-index:40;
+  font-family:'Space Mono',monospace;font-size:.38rem;
+  color:#ede8db;opacity:.35;letter-spacing:.22em;
+  mix-blend-mode:difference;pointer-events:none;
+}
+.zimg-slot::after{
+  content:'';position:absolute;inset:0;z-index:50;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect x='0' y='0' width='1' height='1' fill='%23000' opacity='.035'/%3E%3Crect x='2' y='3' width='1' height='1' fill='%23000' opacity='.025'/%3E%3C/svg%3E");
+}
+
+/* vertical stack of sheets, centered on the workbench */
+#output{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+}
+
+/* each .sheet = one physical piece of paper in the booklet (11×8.5 landscape) */
+.sheet{
+  width:11in; height:8.5in;
+  box-sizing:border-box;
+  padding:.625in .5in;           /* (8.5-7.25)/2 vertical, (11-10)/2 horizontal */
+  background:#fff;
+  position:relative;
+  display:flex;
+  flex-direction:row;
+  gap:0;                         /* pages meet at the spine — no gutter */
+  page-break-after:always;
+  page-break-inside:avoid;
+  box-shadow:0 0 0 1px rgba(0,0,0,.08);
+}
+.sheet .z{
+  width:5in; height:7.25in;
+  flex:0 0 auto;
+  margin:0;
+  box-shadow:0 0 0 .5pt rgba(0,0,0,.25); /* trim indicator (screen only) */
+  page-break-after:auto;
+  page-break-inside:avoid;
+}
+/* the global `body > .z { display:none }` only matches direct body children,
+   so cloned pages inside .sheet render naturally — keeping their inline
+   display:flex centering where the source declares it. */
+.sheet .z.blank{
+  background:var(--cream);
+  box-shadow:0 0 0 .5pt rgba(0,0,0,.15);
+}
+
+/* screen-only guides */
+.sheet-label{
+  position:absolute;top:.22in;left:.3in;z-index:200;
+  font-family:'Space Mono',monospace;font-size:8px;
+  color:#555;letter-spacing:.18em;text-transform:uppercase;
+}
+.page-label{
+  position:absolute;bottom:.22in;z-index:200;
+  font-family:'Space Mono',monospace;font-size:8px;color:#777;letter-spacing:.1em;
+}
+.page-label.left{ left:calc(.5in + 12px); }
+.page-label.right{ right:calc(.5in + 12px); }
+.spine-guide{
+  position:absolute;top:.625in;bottom:.625in;left:50%;width:0;
+  border-left:1px dashed rgba(0,0,0,.25);z-index:150;pointer-events:none;
+}
+/* crop/trim marks — kept on print */
+.crop{position:absolute;background:#111;z-index:180;}
+.crop.h{width:.2in;height:.5pt;}
+.crop.v{width:.5pt;height:.2in;}
+
+@media print{
+  @page { size: 11in 8.5in; margin: 0; }
+
+  /* force browser to print backgrounds / images / colors */
+  *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
+
+  html, body{
+    background:#fff !important;
+    padding:0 !important; margin:0 !important;
+    display:block !important;
+  }
+
+  /* hide all UI chrome */
+  #topbar, #library-panel, #arr-panel{ display:none !important; }
+  #preview-panel > h2{ display:none !important; }
+  #preview-panel{
+    margin:0 !important; padding:0 !important;
+    border:0 !important; background:none !important;
+    display:block !important;
+  }
+
+  /* neutralize screen-only transforms/flex container rules on #output */
+  #output{
+    transform:none !important;
+    width:auto !important;
+    gap:0 !important;
+    display:block !important;
+  }
+
+  /* one .sheet = one PDF page */
+  .sheet{
+    width:11in !important; height:8.5in !important;
+    margin:0 !important; box-shadow:none !important;
+    page-break-after:always !important; break-after:page !important;
+    page-break-inside:avoid !important; break-inside:avoid !important;
+    display:flex !important;
+  }
+  .sheet:last-child{ page-break-after:auto !important; break-after:auto !important; }
+  .sheet .z{ box-shadow:none !important; }
+  .sheet .z.blank{ box-shadow:none !important; }
+
+  /* drop screen guides but keep crop marks visible */
+  .sheet-label, .page-label, .spine-guide{ display:none !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ARRANGER UI — screen only
+   ═══════════════════════════════════════════════════════════════════ */
+@media screen {
+  body{
+    background:#ede8db;
+    padding:0; margin:0;
+    display:block;
+    min-height:100vh;
+    font-family:'Space Mono',monospace;
+  }
+
+  #topbar{
+    position:sticky; top:0; z-index:1000;
+    background:#111; color:#ede8db;
+    padding:10px 20px;
+    display:flex; align-items:center; gap:20px;
+    border-bottom:2px solid #C9A227;
+  }
+  #topbar h1{
+    font-family:'Anton',sans-serif; font-size:18px;
+    letter-spacing:.05em; text-transform:uppercase; font-weight:normal;
+  }
+  #topbar .spacer{ flex:1; }
+  #topbar #counter{
+    font-size:11px; letter-spacing:.1em; opacity:.7;
+  }
+  #topbar button{
+    background:#C9A227; color:#111; border:none;
+    padding:8px 18px; font-family:inherit; font-size:11px;
+    letter-spacing:.15em; text-transform:uppercase; font-weight:700;
+    cursor:pointer;
+  }
+  #topbar button:hover{ background:#ede8db; }
+  #topbar button.secondary{ background:#333; color:#ede8db; }
+  #topbar button.secondary:hover{ background:#555; }
+
+  .panel{
+    background:#fff; margin:16px 20px; padding:14px 18px;
+    border:1px solid #bbb;
+  }
+  .panel h2{
+    font-family:'Space Mono',monospace;
+    font-size:10px; letter-spacing:.25em; text-transform:uppercase;
+    color:#333; margin-bottom:10px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .panel h2 small{ font-weight:normal; opacity:.5; letter-spacing:.1em; }
+
+  .lib-grid, .arr-row{
+    display:flex; flex-wrap:wrap; gap:10px;
+    min-height:140px;
+  }
+  .lib-group{ margin-bottom:14px; }
+  .lib-group:last-child{ margin-bottom:0; }
+  .lib-group h3{
+    font-family:'Space Mono',monospace;
+    font-size:9px; letter-spacing:.2em; text-transform:uppercase;
+    color:#777; margin-bottom:6px;
+  }
+
+  /* thumbnails — scale-down preview of an actual 5×7.25 page.
+     5in @ 96dpi = 480px; we render at 90px wide → scale 0.1875 */
+  .thumb{
+    width:90px; height:130.5px;
+    position:relative; overflow:hidden;
+    border:1px solid #888; background:#fff;
+    box-shadow:1px 1px 0 rgba(0,0,0,.05);
+  }
+  .thumb > .z, .thumb > .z-half{
+    position:absolute; top:0; left:0;
+    transform:scale(0.1875); transform-origin:top left;
+    pointer-events:none;
+  }
+
+  .lib-item, .arr-item{ width:90px; text-align:center; position:relative; }
+  .lib-item{ cursor:pointer; }
+  .lib-item:hover .thumb{ outline:2px solid #C9A227; outline-offset:-1px; }
+  .lib-item .label, .arr-item .label{
+    font-size:9px; color:#444; letter-spacing:.05em;
+    margin-top:4px; line-height:1.2;
+  }
+
+  .arr-item{ cursor:default; }
+  .arr-item.selected .thumb{ outline:2px solid #C8102E; outline-offset:-1px; }
+  .arr-item .pg-badge{
+    position:absolute; top:-6px; left:-6px; z-index:5;
+    background:#111; color:#ede8db;
+    font-size:8px; padding:2px 5px;
+    letter-spacing:.08em;
+  }
+  .arr-item .ctrl{
+    position:absolute; top:4px; right:4px; z-index:6;
+    display:flex; flex-direction:column; gap:2px;
+  }
+  .arr-item .ctrl button{
+    width:18px; height:16px; padding:0;
+    border:1px solid #888; background:rgba(255,255,255,.95);
+    font-size:10px; line-height:1; cursor:pointer;
+    font-family:inherit;
+  }
+  .arr-item .ctrl button:hover{ background:#C9A227; }
+  .arr-item .ctrl .x{ color:#C8102E; font-weight:700; }
+
+  /* mark the start of each PDF page (pairs of two) */
+  .arr-item.pair-start{
+    margin-left:8px; padding-left:8px;
+    border-left:2px solid #333;
+  }
+  .arr-item.pair-start:first-child{ margin-left:0; }
+
+  /* preview of print output at small scale below the arrangement */
+  #preview-panel{
+    background:#fff; margin:16px 20px; padding:14px 18px;
+    border:1px solid #bbb;
+  }
+  #output{
+    display:flex; flex-direction:column; gap:8px;
+    transform:scale(0.5); transform-origin:top left;
+    width:calc(11in * 2); /* compensate for scale */
+  }
+  #output .sheet{
+    box-shadow:0 0 0 1px rgba(0,0,0,.15);
+  }
+
+  /* hide raw source pages on screen (already hidden by earlier rule) */
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ 1 · COVER — MULTI-COLOR LAYER EXPLOSION ═══ -->
+<div class="z" style="background:var(--ink);">
+  <!-- layered color shapes — brand colors as abstract riso layers -->
+  <div style="position:absolute;top:-20%;left:-15%;width:80%;height:70%;background:var(--united);border-radius:50%;opacity:.15;mix-blend-mode:screen;filter:blur(1px);"></div>
+  <div style="position:absolute;bottom:-10%;right:-20%;width:70%;height:60%;background:var(--delta);border-radius:50%;opacity:.12;mix-blend-mode:screen;"></div>
+  <div style="position:absolute;top:30%;left:40%;width:50%;height:45%;background:var(--cathay);border-radius:50%;opacity:.1;mix-blend-mode:screen;"></div>
+  <div style="position:absolute;top:10%;right:5%;width:35%;height:30%;background:var(--hyatt);border-radius:50%;opacity:.08;mix-blend-mode:screen;"></div>
+  <div style="position:absolute;bottom:20%;left:10%;width:25%;height:25%;background:var(--amexgold);border-radius:50%;opacity:.1;mix-blend-mode:screen;"></div>
+  <!-- grain heavy -->
+  <div style="position:absolute;inset:0;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%226%22 height=%226%22%3E%3Crect x=%220%22 y=%220%22 width=%222%22 height=%222%22 fill=%22%23fff%22 opacity=%22.04%22/%3E%3Crect x=%223%22 y=%224%22 width=%221%22 height=%221%22 fill=%22%23fff%22 opacity=%22.03%22/%3E%3C/svg%3E');z-index:2;"></div>
+  <!-- plane silhouette, colored -->
+  <svg style="position:absolute;top:15px;right:-40px;width:60%;opacity:.035;z-index:3;" viewBox="0 0 200 200" fill="#fff"><path d="M100 10L185 100 100 92 105 185 92 145 92 92 15 100Z"/></svg>
+  <!-- title -->
+  <div style="position:absolute;bottom:-8px;left:-6px;z-index:4;">
+    <div class="XX" style="font-size:6.2rem;line-height:.78;color:var(--cream);letter-spacing:-.04em;opacity:.88;">THE<br>POINTS<br><span style="background:linear-gradient(90deg,var(--amexgold),var(--choice2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">GAME</span></div>
+  </div>
+  <div style="position:absolute;top:14px;left:14px;z-index:5;font-family:'Space Mono',monospace;font-size:.38rem;color:rgba(255,255,255,.3);letter-spacing:.2em;">ISSUE 01 &bull; 2026</div>
+  <div style="position:absolute;top:14px;right:14px;z-index:5;font-family:'Space Mono',monospace;font-size:.38rem;color:rgba(255,255,255,.3);letter-spacing:.2em;">JC & WK</div>
+  <!-- bottom color bar strip -->
+  <div style="position:absolute;bottom:0;left:0;right:0;height:4px;display:flex;z-index:5;">
+    <div style="flex:1;background:var(--united);"></div><div style="flex:1;background:var(--cathay);"></div><div style="flex:1;background:var(--delta);"></div><div style="flex:1;background:var(--aa);"></div><div style="flex:1;background:var(--virgin);"></div><div style="flex:1;background:var(--hyatt);"></div><div style="flex:1;background:var(--marriott);"></div><div style="flex:1;background:var(--hilton);"></div><div style="flex:1;background:var(--amexgold);"></div><div style="flex:1;background:var(--chase);"></div>
+  </div>
+</div>
+
+<!-- ═══ 2 · INSIDE COVER — COLOR CHIP GRID ═══ -->
+<div class="z" style="display:flex;align-items:center;justify-content:center;">
+  <div style="display:grid;grid-template-columns:repeat(5,28px);gap:6px;opacity:.6;">
+    <div style="width:28px;height:28px;background:var(--united);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--cathay);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--delta);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--aa);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--virgin);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--af);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--klm);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--aircan);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--hyatt);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--marriott);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--hilton);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--choice);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--chase);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--amexgold);border-radius:2px;"></div>
+    <div style="width:28px;height:28px;background:var(--citi2);border-radius:2px;"></div>
+  </div>
+  <!-- credit card chip underneath -->
+  <div style="position:absolute;bottom:40px;left:50%;transform:translateX(-50%);">
+    <div style="width:36px;height:26px;border:1.5px solid rgba(0,0,0,.08);border-radius:3px;position:relative;">
+      <div style="position:absolute;top:5px;left:5px;right:5px;height:.5px;background:rgba(0,0,0,.06);"></div>
+      <div style="position:absolute;top:10px;left:5px;right:5px;height:.5px;background:rgba(0,0,0,.04);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 3 · ? — WITH COLOR BLEEDING ═══ -->
+<div class="z" style="display:flex;align-items:center;justify-content:center;">
+  <!-- layered question marks in brand colors -->
+  <div class="XX" style="position:absolute;font-size:20rem;line-height:.75;color:var(--united);opacity:.06;transform:translate(-8px,-5px);">?</div>
+  <div class="XX" style="position:absolute;font-size:20rem;line-height:.75;color:var(--delta);opacity:.06;transform:translate(5px,3px);">?</div>
+  <div class="XX" style="position:absolute;font-size:20rem;line-height:.75;color:var(--cathay);opacity:.08;transform:translate(0,0);">?</div>
+  <div class="XX" style="font-size:20rem;line-height:.75;color:var(--ink);opacity:.7;position:relative;z-index:2;">?</div>
+</div>
+
+<!-- ═══ 4 · 50,000 — GRADIENT NUMBER ═══ -->
+<div class="z" style="display:flex;align-items:center;justify-content:center;overflow:hidden;">
+  <!-- halftone bg in united blue -->
+  <div style="position:absolute;inset:0;background-image:radial-gradient(circle,var(--united) .5px,transparent .5px);background-size:5px 5px;opacity:.04;"></div>
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-48%) scaleY(1.25);white-space:nowrap;">
+    <div class="XX" style="font-size:7.5rem;letter-spacing:-.05em;background:linear-gradient(135deg,var(--united),var(--cathay),var(--delta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;opacity:.8;">50,000</div>
+  </div>
+  <div style="position:absolute;bottom:18px;right:18px;font-family:'Space Mono',monospace;font-size:.35rem;color:var(--ink);opacity:.2;letter-spacing:.12em;text-align:right;">POINTS EARNED<br>BUYING GROCERIES</div>
+</div>
+
+<!-- ═══ 5 · BOARDING PASS — MULTI-COLOR ═══ -->
+<div class="z" style="display:flex;align-items:center;justify-content:center;">
+  <!-- background dots in cathay green -->
+  <div style="position:absolute;inset:0;background-image:radial-gradient(circle,var(--cathay) .4px,transparent .4px);background-size:6px 6px;opacity:.03;"></div>
+  <!-- boarding pass fragment -->
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-3deg);width:115%;border-top:3px solid var(--united);border-bottom:3px solid var(--united);padding:28px 36px;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div class="XX" style="font-size:4.2rem;color:var(--united);letter-spacing:-.02em;">JFK</div>
+      <div class="mo" style="font-size:.3rem;color:var(--united);opacity:.3;letter-spacing:.12em;">NEW YORK</div>
+    </div>
+    <div>
+      <svg width="70" height="20" viewBox="0 0 70 20"><line x1="0" y1="10" x2="48" y2="10" stroke="var(--united)" stroke-width="1.5" stroke-dasharray="4,3"/><polygon points="58,10 48,5 48,15" fill="var(--cathay)"/></svg>
+    </div>
+    <div style="text-align:right;">
+      <div class="XX" style="font-size:4.2rem;color:var(--cathay);letter-spacing:-.02em;">HKG</div>
+      <div class="mo" style="font-size:.3rem;color:var(--cathay);opacity:.3;letter-spacing:.12em;">HONG KONG</div>
+    </div>
+  </div>
+  <div style="position:absolute;right:21%;top:0;bottom:0;border-right:2px dashed var(--ink);opacity:.08;"></div>
+  <!-- BUSINESS stamp in delta red -->
+  <div style="position:absolute;top:22px;right:28px;transform:rotate(14deg);border:2.5px solid var(--delta);padding:2px 10px;opacity:.4;">
+    <span class="mo" style="font-size:.45rem;color:var(--delta);font-weight:700;letter-spacing:.12em;">BUSINESS</span>
+  </div>
+  <!-- seat number in chase blue -->
+  <div style="position:absolute;bottom:22px;right:35px;">
+    <div class="mo" style="font-size:.25rem;color:var(--chase);opacity:.3;letter-spacing:.1em;">SEAT</div>
+    <div class="XX" style="font-size:1.4rem;color:var(--chase);opacity:.25;">2A</div>
+  </div>
+</div>
+
+<!-- ═══ 6 · $4,200 STRIKETHROUGH — BRAND COLORS ═══ -->
+<div class="z" style="display:flex;align-items:center;justify-content:center;">
+  <div style="position:relative;">
+    <div class="XX" style="font-size:5.5rem;color:var(--ink);opacity:.12;">$4,200</div>
+    <svg style="position:absolute;top:50%;left:-8%;width:116%;transform:translateY(-50%);" viewBox="0 0 300 40" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5 20 Q60 10 120 22 Q180 32 240 18 Q270 12 295 20" stroke="var(--delta)" stroke-width="6" fill="none" stroke-linecap="round" opacity=".5"/>
+      <path d="M8 24 Q70 30 130 18 Q190 8 250 22 Q280 28 292 18" stroke="var(--virgin)" stroke-width="3" fill="none" stroke-linecap="round" opacity=".3"/>
+    </svg>
+  </div>
+  <div style="position:absolute;bottom:28px;left:50%;transform:translateX(-50%);text-align:center;">
+    <span class="mo" style="font-size:.5rem;color:var(--cathay);opacity:.4;letter-spacing:.2em;">$50.</span>
+  </div>
+</div>
+
+<!-- ═══ 7 · GOLDEN RULE — AMEX GOLD ═══ -->
+<div class="z" style="background:var(--amexgold);display:flex;align-items:center;justify-content:center;text-align:center;">
+  <div style="position:absolute;inset:0;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%225%22 height=%225%22%3E%3Crect width=%221%22 height=%221%22 fill=%22%23000%22 opacity=%22.08%22/%3E%3C/svg%3E');"></div>
+  <div style="position:relative;z-index:1;width:80%;">
+    <div class="XX" style="font-size:3.2rem;color:var(--ink);line-height:.9;">NEVER<br>CARRY<br>A<br>BALANCE</div>
+  </div>
+</div>
+
+<!-- ═══ 8 · CREDIT CARDS — OVERLAPPING STACK ═══ -->
+<div class="z" style="display:flex;align-items:center;justify-content:center;">
+  <!-- 4 cards stacked with rotation, using real brand colors -->
+  <div style="position:absolute;transform:rotate(-12deg) translate(-30px,20px);width:150px;height:94px;border-radius:8px;background:linear-gradient(135deg,var(--citi),#5a1015);z-index:1;opacity:.7;box-shadow:1px 2px 6px rgba(0,0,0,.1);"></div>
+  <div style="position:absolute;transform:rotate(-4deg) translate(-10px,5px);width:150px;height:94px;border-radius:8px;background:linear-gradient(135deg,var(--amex),#1a4080);z-index:2;opacity:.75;box-shadow:1px 2px 6px rgba(0,0,0,.1);">
+    <div style="position:absolute;bottom:10px;left:12px;font-family:'Space Mono',monospace;font-size:.3rem;color:rgba(255,255,255,.25);letter-spacing:.15em;">AMEX</div>
+  </div>
+  <div style="position:absolute;transform:rotate(3deg) translate(10px,-10px);width:150px;height:94px;border-radius:8px;background:linear-gradient(135deg,var(--amexgold),#8a6d1a);z-index:3;opacity:.8;box-shadow:1px 2px 6px rgba(0,0,0,.1);">
+    <div style="position:absolute;top:12px;left:12px;width:24px;height:17px;border-radius:3px;background:linear-gradient(135deg,#daa520,#f5d076);border:.5px solid #b8860b;"></div>
+    <div style="position:absolute;bottom:10px;left:12px;font-family:'Space Mono',monospace;font-size:.3rem;color:rgba(255,255,255,.3);letter-spacing:.15em;">GOLD</div>
+  </div>
+  <div style="position:absolute;transform:rotate(10deg) translate(30px,-25px);width:150px;height:94px;border-radius:8px;background:linear-gradient(135deg,var(--chase),#0a4a8a);z-index:4;opacity:.85;box-shadow:1px 2px 6px rgba(0,0,0,.15);">
+    <div style="position:absolute;top:12px;left:12px;width:24px;height:17px;border-radius:3px;background:linear-gradient(135deg,#daa520,#f5d076);border:.5px solid #b8860b;"></div>
+    <div style="position:absolute;bottom:10px;left:12px;font-family:'Space Mono',monospace;font-size:.3rem;color:rgba(255,255,255,.35);letter-spacing:.15em;">SAPPHIRE</div>
+  </div>
+  <!-- Bilt card on top -->
+  <div style="position:absolute;transform:rotate(-2deg) translate(0px,-5px);width:150px;height:94px;border-radius:8px;background:linear-gradient(135deg,#111,#2a2a2a);border:.5px solid #333;z-index:5;box-shadow:2px 3px 8px rgba(0,0,0,.2);">
+    <div style="position:absolute;top:12px;left:12px;width:24px;height:17px;border-radius:3px;background:linear-gradient(135deg,#daa520,#f5d076);border:.5px solid #b8860b;"></div>
+    <div style="position:absolute;bottom:10px;left:12px;font-family:'Space Mono',monospace;font-size:.3rem;color:rgba(255,255,255,.3);letter-spacing:.15em;">BILT</div>
+    <div style="position:absolute;top:12px;right:12px;font-family:'Space Mono',monospace;font-size:.2rem;color:var(--delta);letter-spacing:.08em;">RENT DAY</div>
+  </div>
+  <!-- label -->
+  <div style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-family:'Space Mono',monospace;font-size:.3rem;color:var(--ink);opacity:.15;letter-spacing:.15em;">EARN EVERYWHERE</div>
+</div>
+
+<!-- ═══ 9 · TRANSFER MAP — COLOR RIVERS ═══ -->
+<div class="z" style="overflow:hidden;">
+  <svg viewBox="0 0 360 522" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <!-- bank nodes -->
+    <rect x="10" y="60" width="65" height="26" rx="3" fill="var(--chase)" opacity=".8"/><text x="42" y="77" font-family="'Space Mono',monospace" font-size="6" fill="white" text-anchor="middle" font-weight="700">CHASE</text>
+    <rect x="10" y="120" width="65" height="26" rx="3" fill="var(--amexgold)" opacity=".8"/><text x="42" y="137" font-family="'Space Mono',monospace" font-size="6" fill="white" text-anchor="middle" font-weight="700">AMEX</text>
+    <rect x="10" y="180" width="65" height="26" rx="3" fill="var(--citi2)" opacity=".8"/><text x="42" y="197" font-family="'Space Mono',monospace" font-size="6" fill="white" text-anchor="middle" font-weight="700">CITI</text>
+    <rect x="10" y="240" width="65" height="26" rx="3" fill="#222"/><text x="42" y="257" font-family="'Space Mono',monospace" font-size="6" fill="white" text-anchor="middle" font-weight="700">BILT</text>
+
+    <!-- airline/hotel nodes -->
+    <rect x="170" y="30" width="55" height="22" rx="2" fill="var(--united)"/><text x="197" y="45" font-family="'Anton',sans-serif" font-size="8" fill="white" text-anchor="middle">UNITED</text>
+    <rect x="235" y="30" width="55" height="22" rx="2" fill="var(--cathay)"/><text x="262" y="45" font-family="'Anton',sans-serif" font-size="8" fill="white" text-anchor="middle">CATHAY</text>
+    <rect x="300" y="30" width="50" height="22" rx="2" fill="var(--aa2)"/><text x="325" y="45" font-family="'Anton',sans-serif" font-size="8" fill="white" text-anchor="middle">AA</text>
+
+    <rect x="170" y="65" width="55" height="22" rx="2" fill="var(--delta2)"/><text x="197" y="80" font-family="'Anton',sans-serif" font-size="8" fill="white" text-anchor="middle">DELTA</text>
+    <rect x="235" y="65" width="55" height="22" rx="2" fill="var(--virgin)"/><text x="262" y="80" font-family="'Anton',sans-serif" font-size="7" fill="white" text-anchor="middle">VIRGIN</text>
+    <rect x="300" y="65" width="50" height="22" rx="2" fill="var(--af)"/><text x="325" y="79" font-family="'Anton',sans-serif" font-size="6" fill="white" text-anchor="middle">AF/KLM</text>
+
+    <rect x="170" y="100" width="55" height="22" rx="2" fill="var(--aircan)"/><text x="197" y="115" font-family="'Anton',sans-serif" font-size="7" fill="white" text-anchor="middle">AIR CAN</text>
+
+    <rect x="170" y="155" width="55" height="22" rx="2" fill="var(--hyatt)"/><text x="197" y="170" font-family="'Anton',sans-serif" font-size="8" fill="var(--hyatt2)" text-anchor="middle">HYATT</text>
+    <rect x="235" y="155" width="55" height="22" rx="2" fill="var(--marriott2)"/><text x="262" y="170" font-family="'Anton',sans-serif" font-size="7" fill="var(--marriott)" text-anchor="middle">MARRIOTT</text>
+    <rect x="300" y="155" width="50" height="22" rx="2" fill="var(--hilton)"/><text x="325" y="170" font-family="'Anton',sans-serif" font-size="7" fill="white" text-anchor="middle">HILTON</text>
+
+    <!-- CONNECTIONS — colored by source bank -->
+    <!-- Chase connections -->
+    <path d="M75 73 Q120 50 170 41" stroke="var(--chase)" stroke-width="1.5" fill="none" opacity=".4"/>
+    <path d="M75 73 Q130 70 170 76" stroke="var(--chase)" stroke-width="1" fill="none" opacity=".2"/>
+    <path d="M75 73 Q120 73 170 76" stroke="var(--chase)" stroke-width="1" fill="none" opacity=".15"/>
+    <path d="M75 73 Q130 90 170 111" stroke="var(--chase)" stroke-width="1" fill="none" opacity=".2"/>
+    <path d="M75 73 Q120 120 170 166" stroke="var(--chase)" stroke-width="2" fill="none" opacity=".5"/>
+    <path d="M75 73 Q130 60 235 76" stroke="var(--chase)" stroke-width="1" fill="none" opacity=".15"/>
+
+    <!-- Amex connections -->
+    <path d="M75 133 Q130 100 235 41" stroke="var(--amexgold)" stroke-width="1.5" fill="none" opacity=".3"/>
+    <path d="M75 133 Q120 120 170 76" stroke="var(--amexgold)" stroke-width="1.5" fill="none" opacity=".3"/>
+    <path d="M75 133 Q130 110 235 76" stroke="var(--amexgold)" stroke-width="1" fill="none" opacity=".2"/>
+    <path d="M75 133 Q120 140 300 76" stroke="var(--amexgold)" stroke-width=".8" fill="none" opacity=".15"/>
+    <path d="M75 133 Q130 155 300 166" stroke="var(--amexgold)" stroke-width="1" fill="none" opacity=".2"/>
+
+    <!-- Citi connections -->
+    <path d="M75 193 Q130 130 300 41" stroke="var(--citi2)" stroke-width="1.5" fill="none" opacity=".3"/>
+    <path d="M75 193 Q120 150 235 41" stroke="var(--citi2)" stroke-width="1" fill="none" opacity=".25"/>
+
+    <!-- Bilt connections -->
+    <path d="M75 253 Q120 200 170 41" stroke="#666" stroke-width="1" fill="none" opacity=".25"/>
+    <path d="M75 253 Q130 230 300 41" stroke="#666" stroke-width=".8" fill="none" opacity=".15"/>
+    <path d="M75 253 Q120 220 170 166" stroke="#666" stroke-width="1.5" fill="none" opacity=".35"/>
+
+    <!-- legend -->
+    <text x="10" y="310" font-family="'Space Mono',monospace" font-size="5" fill="var(--ink)" opacity=".2">thicker = best value</text>
+
+    <!-- decorative passport stamps bottom -->
+    <circle cx="80" cy="420" r="30" fill="none" stroke="var(--cathay)" stroke-width="1" opacity=".06"/>
+    <text x="80" y="423" font-family="'Anton',sans-serif" font-size="10" fill="var(--cathay)" text-anchor="middle" opacity=".06">HKG</text>
+    <circle cx="280" cy="450" r="25" fill="none" stroke="var(--delta)" stroke-width="1" opacity=".05"/>
+    <text x="280" y="453" font-family="'Anton',sans-serif" font-size="8" fill="var(--delta)" text-anchor="middle" opacity=".05">ATL</text>
+    <circle cx="180" cy="480" r="20" fill="none" stroke="var(--united)" stroke-width="1" opacity=".04"/>
+    <text x="180" y="483" font-family="'Anton',sans-serif" font-size="7" fill="var(--united)" text-anchor="middle" opacity=".04">EWR</text>
+  </svg>
+</div>
+
+
+<!-- ═══ 10 · UNITED — NAVY DEEP ═══ -->
+<div class="z" style="background:var(--united);overflow:hidden;">
+  <div style="position:absolute;inset:0;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%224%22 height=%224%22%3E%3Crect width=%221%22 height=%221%22 fill=%22%23fff%22 opacity=%22.04%22/%3E%3C/svg%3E');"></div>
+    <!-- globe lines -->
+  <svg style="position:absolute;top:10%;right:5%;width:50%;opacity:.08;z-index:1;" viewBox="0 0 200 200"><circle cx="100" cy="100" r="80" fill="none" stroke="white" stroke-width="1.5"/><ellipse cx="100" cy="100" rx="40" ry="80" fill="none" stroke="white" stroke-width=".8"/><ellipse cx="100" cy="100" rx="65" ry="80" fill="none" stroke="white" stroke-width=".5"/><line x1="20" y1="100" x2="180" y2="100" stroke="white" stroke-width=".5"/><line x1="20" y1="65" x2="180" y2="65" stroke="white" stroke-width=".3"/><line x1="20" y1="135" x2="180" y2="135" stroke="white" stroke-width=".3"/></svg>
+  <!-- type -->
+  <div style="position:absolute;bottom:20px;left:20px;z-index:2;">
+    <div class="mo" style="font-size:.3rem;color:var(--united2);opacity:.6;letter-spacing:.2em;margin-bottom:4px;">JC &bull; AIRLINES</div>
+    <div class="XX" style="font-size:5rem;line-height:.78;color:var(--cream);opacity:.85;">UNI<br>TED</div>
+    <div style="display:flex;gap:12px;margin-top:10px;">
+      <div><div class="XX" style="font-size:1.3rem;color:var(--united2);">12.5K</div><div class="mo" style="font-size:.22rem;color:rgba(255,255,255,.25);letter-spacing:.08em;">DOMESTIC</div></div>
+      <div><div class="XX" style="font-size:1.3rem;color:var(--delta);">80K</div><div class="mo" style="font-size:.22rem;color:rgba(255,255,255,.25);letter-spacing:.08em;">POLARIS BIZ</div></div>
+    </div>
+  </div>
+  <div class="mo" style="position:absolute;top:14px;left:14px;font-size:.25rem;color:var(--chase);opacity:.35;letter-spacing:.15em;z-index:2;">CHASE &rarr; 1:1</div>
+</div>
+
+<!-- ═══ 11 · CATHAY — TEAL + RED ═══ -->
+<div class="z" style="background:var(--cathay);overflow:hidden;">
+  <div style="position:absolute;inset:0;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%224%22 height=%224%22%3E%3Crect width=%221%22 height=%221%22 fill=%22%23000%22 opacity=%22.08%22/%3E%3C/svg%3E');"></div>
+    <!-- hub diagram with brand colors -->
+  <svg style="position:absolute;top:5%;right:2%;width:55%;height:90%;z-index:1;" viewBox="0 0 200 400">
+    <circle cx="100" cy="200" r="22" fill="none" stroke="var(--cream)" stroke-width="1.5" opacity=".3"/>
+    <text x="100" y="205" font-family="'Anton',sans-serif" font-size="14" fill="var(--cream)" text-anchor="middle" opacity=".6">HKG</text>
+    <line x1="82" y1="182" x2="30" y2="60" stroke="var(--cream)" stroke-width="1" opacity=".15" stroke-dasharray="3,2"/>
+    <text x="20" y="55" font-family="'Anton',sans-serif" font-size="11" fill="var(--cream)" opacity=".4">NRT</text>
+    <line x1="78" y1="200" x2="10" y2="210" stroke="var(--cream)" stroke-width="1" opacity=".12" stroke-dasharray="3,2"/>
+    <text x="5" y="207" font-family="'Anton',sans-serif" font-size="11" fill="var(--cream)" opacity=".3">BKK</text>
+    <line x1="82" y1="218" x2="25" y2="340" stroke="var(--cream)" stroke-width="1" opacity=".12" stroke-dasharray="3,2"/>
+    <text x="15" y="345" font-family="'Anton',sans-serif" font-size="11" fill="var(--cream)" opacity=".3">TPE</text>
+    <line x1="120" y1="185" x2="175" y2="60" stroke="var(--cathay2)" stroke-width="2" opacity=".4"/>
+    <text x="165" y="50" font-family="'Anton',sans-serif" font-size="13" fill="var(--cathay2)" opacity=".6">JFK</text>
+    <text x="165" y="64" font-family="'Space Mono',monospace" font-size="5" fill="var(--cream)" opacity=".2">85K</text>
+    <line x1="120" y1="218" x2="175" y2="340" stroke="var(--cathay2)" stroke-width="2" opacity=".4"/>
+    <text x="163" y="345" font-family="'Anton',sans-serif" font-size="13" fill="var(--cathay2)" opacity=".6">SFO</text>
+  </svg>
+  <!-- type -->
+  <div style="position:absolute;bottom:20px;left:20px;z-index:2;">
+    <div class="mo" style="font-size:.3rem;color:var(--amexgold);opacity:.5;letter-spacing:.2em;margin-bottom:4px;">JC &bull; AMEX &rarr; ASIA MILES</div>
+    <div class="XX" style="font-size:3.2rem;color:var(--cream);line-height:.85;opacity:.85;">CATHAY<br>PACIFIC</div>
+  </div>
+</div>
+
+<!-- ═══ 12 · WK AIRLINES — COLOR PANELS ═══ -->
+<div class="z" style="display:flex;overflow:hidden;">
+  <div style="flex:1;background:var(--aa2);display:flex;align-items:center;justify-content:center;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--aa);"></div>
+    <div class="XX" style="font-size:2rem;color:var(--cream);opacity:.6;writing-mode:vertical-rl;transform:rotate(180deg);">AA</div>
+    <div class="mo" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:.22rem;color:var(--cream);opacity:.2;letter-spacing:.1em;">WK</div>
+  </div>
+  <div style="flex:1;background:var(--delta2);display:flex;align-items:center;justify-content:center;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--delta);"></div>
+    <div class="XX" style="font-size:1.3rem;color:var(--cream);opacity:.5;writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.05em;">DELTA</div>
+    <div class="mo" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:.22rem;color:var(--cream);opacity:.15;letter-spacing:.1em;">WK</div>
+  </div>
+  <div style="flex:1;background:var(--virgin2);display:flex;align-items:center;justify-content:center;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--virgin);"></div>
+    <div class="XX" style="font-size:1rem;color:var(--cream);opacity:.5;writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.08em;">VIRGIN</div>
+    <div class="mo" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:.22rem;color:var(--cream);opacity:.15;letter-spacing:.1em;">WK</div>
+  </div>
+  <div style="flex:1;background:var(--af);display:flex;align-items:center;justify-content:center;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--klm);"></div>
+    <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--af2);"></div>
+    <div class="XX" style="font-size:.7rem;color:var(--cream);opacity:.45;writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.1em;">AF/KLM</div>
+    <div class="mo" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:.22rem;color:var(--cream);opacity:.12;letter-spacing:.1em;">WK</div>
+  </div>
+  <div style="flex:1;background:#1a0000;display:flex;align-items:center;justify-content:center;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--aircan);"></div>
+    <div class="XX" style="font-size:.6rem;color:var(--cream);opacity:.4;writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.1em;">AIR CAN</div>
+    <div class="mo" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:.22rem;color:var(--cream);opacity:.12;letter-spacing:.1em;">WK</div>
+  </div>
+</div>
+
+<!-- ═══ 13 · PASSPORT STAMPS — MULTI-COLOR ═══ -->
+<div class="z" style="overflow:hidden;">
+  <div style="position:absolute;top:8%;left:6%;width:100px;height:100px;border:3px solid var(--cathay);border-radius:50%;opacity:.12;transform:rotate(-15deg);display:flex;align-items:center;justify-content:center;flex-direction:column;">
+    <span class="XX" style="font-size:.8rem;color:var(--cathay);">HKG</span>
+    <span class="mo" style="font-size:.2rem;color:var(--cathay);">IMMIGRATION</span>
+  </div>
+  <div style="position:absolute;top:30%;right:10%;width:80px;height:80px;border:2.5px solid var(--delta);border-radius:50%;opacity:.15;transform:rotate(22deg);display:flex;align-items:center;justify-content:center;">
+    <span class="XX" style="font-size:.65rem;color:var(--delta);">NRT</span>
+  </div>
+  <div style="position:absolute;bottom:25%;left:20%;width:90px;height:90px;border:3px solid var(--united);border-radius:50%;opacity:.08;transform:rotate(6deg);display:flex;align-items:center;justify-content:center;">
+    <span class="XX" style="font-size:.75rem;color:var(--united);">CDG</span>
+  </div>
+  <div style="position:absolute;bottom:8%;right:15%;width:65px;height:65px;border:2px solid var(--aircan);border-radius:50%;opacity:.12;transform:rotate(-25deg);display:flex;align-items:center;justify-content:center;">
+    <span class="XX" style="font-size:.5rem;color:var(--aircan);">YYZ</span>
+  </div>
+  <div style="position:absolute;top:55%;left:5%;width:55px;height:55px;border:2px solid var(--af);border-radius:50%;opacity:.06;transform:rotate(30deg);display:flex;align-items:center;justify-content:center;">
+    <span class="XX" style="font-size:.4rem;color:var(--af);">BKK</span>
+  </div>
+  <!-- rectangular stamps -->
+  <div style="position:absolute;top:50%;right:35%;border:2px solid var(--virgin);padding:3px 8px;opacity:.07;transform:rotate(-5deg);">
+    <span class="mo" style="font-size:.3rem;color:var(--virgin);font-weight:700;letter-spacing:.12em;">DEPARTED</span>
+  </div>
+  <div style="position:absolute;top:18%;left:40%;border:1.5px solid var(--klm);padding:2px 6px;opacity:.05;transform:rotate(8deg);">
+    <span class="mo" style="font-size:.25rem;color:var(--klm);letter-spacing:.1em;">SCHIPHOL</span>
+  </div>
+  <!-- Caption (recovered from orphaned content in source) -->
+  <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;z-index:10;">
+    <div class="mo" style="font-size:.22rem;color:var(--ink);opacity:.35;letter-spacing:.2em;">PROOF OF TRAVEL &bull; 2019&ndash;2026</div>
+  </div>
+</div>
+
+<!-- ═══ 14 · HYATT — KEY CARD + BLUE ═══ -->
+<div class="z" style="background:var(--hyatt);display:flex;align-items:center;justify-content:center;">
+  <div style="position:absolute;inset:0;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%224%22 height=%224%22%3E%3Crect width=%221%22 height=%221%22 fill=%22%23000%22 opacity=%22.06%22/%3E%3C/svg%3E');"></div>
+  <!-- key card -->
+  <div style="width:160px;height:100px;background:linear-gradient(145deg,#0a0a0a,#222);border-radius:10px;padding:12px;position:relative;transform:rotate(-4deg);box-shadow:3px 3px 0 var(--hyatt2);z-index:1;">
+    <div style="position:absolute;top:12px;right:12px;width:15px;height:22px;border:1.5px solid var(--hyatt2);border-radius:2px;opacity:.5;"></div>
+    <div style="position:absolute;bottom:10px;left:12px;">
+      <div class="mo" style="font-size:.3rem;color:var(--hyatt2);letter-spacing:.12em;opacity:.6;">WORLD OF HYATT</div>
+      <div class="mo" style="font-size:.22rem;color:#555;margin-top:2px;">PARK HYATT TOKYO</div>
+    </div>
+  </div>
+  <!-- stats -->
+  <div style="position:absolute;bottom:20px;left:20px;z-index:2;">
+    <div style="display:flex;gap:10px;align-items:baseline;">
+      <div class="XX" style="font-size:2rem;color:var(--hyatt2);">30K</div>
+      <div class="mo" style="font-size:.3rem;color:var(--cream);opacity:.3;">=</div>
+      <div class="XX" style="font-size:2rem;color:var(--cream);opacity:.3;">$800</div>
+    </div>
+  </div>
+  <div class="mo" style="position:absolute;top:14px;left:14px;font-size:.25rem;color:var(--cream);opacity:.2;letter-spacing:.15em;z-index:2;">JC &bull; CHASE + BILT &rarr; 1:1</div>
+</div>
+
+<!-- ═══ 15 · WK HOTELS — BRAND COLOR BARS ═══ -->
+<div class="z" style="display:flex;flex-direction:column;overflow:hidden;">
+  <div style="flex:1;background:var(--marriott2);display:flex;align-items:center;padding-left:20px;position:relative;">
+    <div style="position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--marriott);"></div>
+    <div class="XX" style="font-size:2.2rem;color:var(--marriott);opacity:.5;">MARRIOTT</div>
+    <div class="mo" style="position:absolute;right:14px;font-size:.22rem;color:var(--cream);opacity:.15;letter-spacing:.12em;">WK</div>
+  </div>
+  <div style="flex:1;background:var(--hilton);display:flex;align-items:center;padding-left:20px;position:relative;">
+    <div class="XX" style="font-size:2.2rem;color:var(--cream);opacity:.4;">HILTON</div>
+    <div class="mo" style="position:absolute;right:14px;font-size:.22rem;color:var(--cream);opacity:.12;letter-spacing:.12em;">WK</div>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;padding-left:20px;position:relative;">
+    <div style="position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--choice);"></div>
+    <div style="position:absolute;right:0;top:0;bottom:0;width:5px;background:var(--choice2);"></div>
+    <div class="XX" style="font-size:2.2rem;color:var(--choice);opacity:.3;">CHOICE</div>
+    <div class="mo" style="position:absolute;right:14px;font-size:.22rem;color:var(--ink);opacity:.15;letter-spacing:.12em;">WK</div>
+  </div>
+</div>
+
+<!-- ═══ 16 · TESTIMONIALS — SCATTERED COLOR ═══ -->
+<div class="z" style="background:var(--ink);overflow:hidden;">
+  <!-- color blobs -->
+  <div style="position:absolute;top:10%;left:5%;width:120px;height:120px;background:var(--united);border-radius:50%;opacity:.05;"></div>
+  <div style="position:absolute;bottom:10%;right:10%;width:100px;height:100px;background:var(--cathay);border-radius:50%;opacity:.04;"></div>
+  <div style="position:absolute;top:50%;left:50%;width:80px;height:80px;background:var(--delta);border-radius:50%;opacity:.03;"></div>
+  <!-- paper scraps -->
+  <div style="position:absolute;top:25px;left:16px;width:58%;background:var(--cream);padding:10px 12px;transform:rotate(-2.5deg);z-index:2;box-shadow:1px 1px 0 rgba(0,0,0,.1);">
+    <div class="se" style="font-size:.58rem;font-style:italic;color:var(--ink);line-height:1.4;">"Mom thinks I'm lying."</div>
+    <div class="mo" style="font-size:.25rem;color:var(--delta);text-align:right;margin-top:2px;font-weight:700;">&mdash; A.L.</div>
+  </div>
+  <div style="position:absolute;top:130px;right:14px;width:52%;background:var(--cream);padding:10px 12px;transform:rotate(1.8deg);z-index:2;box-shadow:1px 1px 0 rgba(0,0,0,.1);">
+    <div class="se" style="font-size:.58rem;font-style:italic;color:var(--ink);line-height:1.4;">"200K points and a problem."</div>
+    <div class="mo" style="font-size:.25rem;color:var(--united);text-align:right;margin-top:2px;font-weight:700;">&mdash; M.Z.</div>
+  </div>
+  <div style="position:absolute;bottom:110px;left:24px;width:50%;background:var(--cream);padding:10px 12px;transform:rotate(-1deg);z-index:2;box-shadow:1px 1px 0 rgba(0,0,0,.1);">
+    <div class="se" style="font-size:.58rem;font-style:italic;color:var(--ink);line-height:1.4;">"Bathtub. Mount Fuji. 30K points."</div>
+    <div class="mo" style="font-size:.25rem;color:var(--hyatt);text-align:right;margin-top:2px;font-weight:700;">&mdash; K.W.</div>
+  </div>
+  <!-- additional testimonials filling the middle band -->
+  <div style="position:absolute;top:215px;right:18px;width:46%;background:var(--cream);padding:10px 12px;transform:rotate(-2.3deg);z-index:2;box-shadow:1px 1px 0 rgba(0,0,0,.1);">
+    <div class="se" style="font-size:.55rem;font-style:italic;color:var(--ink);line-height:1.4;">"Lounge shower at 6am. Life-changing."</div>
+    <div class="mo" style="font-size:.25rem;color:var(--cathay);text-align:right;margin-top:2px;font-weight:700;">&mdash; S.R.</div>
+  </div>
+  <div style="position:absolute;top:310px;left:28px;width:52%;background:var(--cream);padding:10px 12px;transform:rotate(1.9deg);z-index:2;box-shadow:1px 1px 0 rgba(0,0,0,.1);">
+    <div class="se" style="font-size:.55rem;font-style:italic;color:var(--ink);line-height:1.4;">"Free coffee is still free coffee."</div>
+    <div class="mo" style="font-size:.25rem;color:var(--aa);text-align:right;margin-top:2px;font-weight:700;">&mdash; B.H.</div>
+  </div>
+  <div style="position:absolute;top:408px;right:30px;width:40%;background:var(--cream);padding:8px 10px;transform:rotate(-1.4deg);z-index:2;box-shadow:1px 1px 0 rgba(0,0,0,.1);">
+    <div class="se" style="font-size:.5rem;font-style:italic;color:var(--ink);line-height:1.35;">"I just like the little envelopes."</div>
+    <div class="mo" style="font-size:.25rem;color:var(--amexgold);text-align:right;margin-top:2px;font-weight:700;">&mdash; T.N.</div>
+  </div>
+  <!-- APPROVED stamp -->
+  <div style="position:absolute;bottom:30px;left:16px;border:2px solid var(--amexgold);padding:3px 10px;transform:rotate(-5deg);z-index:2;">
+    <span class="mo" style="font-size:.3rem;color:var(--amexgold);font-weight:700;letter-spacing:.1em;">APPROVED*</span>
+  </div>
+</div>
+
+<!-- ═══ 17 · STATEMENT ═══ -->
+<div class="z" style="display:flex;align-items:center;justify-content:center;text-align:center;">
+  <!-- multi-color gradient halo behind text -->
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:200px;background:conic-gradient(var(--united),var(--cathay),var(--delta),var(--hyatt),var(--amexgold),var(--chase),var(--united));border-radius:50%;opacity:.03;filter:blur(30px);"></div>
+  <div style="width:80%;position:relative;z-index:1;">
+    <div class="se" style="font-size:1.3rem;font-style:italic;color:var(--ink);line-height:1.3;opacity:.6;">The best things in life<br>are redeemed,<br>not bought.</div>
+  </div>
+</div>
+
+<!-- ═══ 18 · BACK COVER ═══ -->
+<div class="z" style="background:var(--ink);display:flex;align-items:center;justify-content:center;text-align:center;">
+  <!-- image credits, top-left corner -->
+  <div style="position:absolute;top:14px;left:14px;z-index:6;text-align:left;max-width:58%;">
+    <div class="mo" style="font-size:.26rem;color:var(--cream);opacity:.4;letter-spacing:.18em;margin-bottom:3px;">IMAGES &mdash; THANKS</div>
+    <div class="mo" style="font-size:.24rem;color:var(--cream);opacity:.22;letter-spacing:.06em;line-height:1.55;">
+      Xianyu Hao &middot; Julie Halpert &middot; authors &middot; authors &middot; Getty Images &middot; authors &middot; authors &middot; authors &middot; Sebastian Leonhardt &middot; authors &middot; David Edelstein
+    </div>
+  </div>
+  <!-- multi-color orbs -->
+  <div style="position:absolute;top:20%;left:15%;width:80px;height:80px;background:var(--united);border-radius:50%;opacity:.04;"></div>
+  <div style="position:absolute;bottom:20%;right:15%;width:60px;height:60px;background:var(--cathay);border-radius:50%;opacity:.03;"></div>
+  <div style="position:absolute;top:40%;right:30%;width:50px;height:50px;background:var(--amexgold);border-radius:50%;opacity:.03;"></div>
+  <svg style="position:absolute;opacity:.025;" viewBox="0 0 200 200" width="180" fill="#fff"><path d="M100 10L185 100 100 92 105 185 92 145 92 92 15 100Z"/></svg>
+  <div style="position:relative;z-index:1;">
+    <div class="XX" style="font-size:2rem;color:var(--cream);opacity:.6;line-height:.85;">THE POINTS<br><span style="background:linear-gradient(90deg,var(--amexgold),var(--choice2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">GAME</span></div>
+    <div style="width:20px;height:2px;background:var(--amexgold);margin:10px auto;opacity:.3;"></div>
+    <div class="mo" style="font-size:.25rem;color:var(--cream);opacity:.2;letter-spacing:.12em;">JC & WK &bull; SART 242 &bull; 2026</div>
+    <div style="border:1px solid rgba(255,255,255,.1);padding:4px 12px;display:inline-block;margin-top:12px;">
+      <span class="mo" style="font-size:.3rem;color:var(--cream);opacity:.25;letter-spacing:.12em;">EDITION ___ OF 16</span>
+    </div>
+    <!-- bottom color bar -->
+    <div style="position:absolute;bottom:-80px;left:-100px;right:-100px;height:3px;display:flex;">
+      <div style="flex:1;background:var(--united);"></div><div style="flex:1;background:var(--cathay);"></div><div style="flex:1;background:var(--delta);"></div><div style="flex:1;background:var(--aa);"></div><div style="flex:1;background:var(--virgin);"></div><div style="flex:1;background:var(--hyatt);"></div><div style="flex:1;background:var(--marriott);"></div><div style="flex:1;background:var(--hilton);"></div><div style="flex:1;background:var(--amexgold);"></div><div style="flex:1;background:var(--chase);"></div>
+    </div>
+    <div class="mo" style="font-size:.2rem;color:var(--cream);opacity:.1;margin-top:16px;">hotel key card inside &bull; each copy different &bull; collect & trade</div>
+  </div>
+</div>
+
+
+<!-- ═══ 19 · CARBON — BIG STAT (critical consciousness) ═══ -->
+<div class="z" style="display:flex;align-items:center;justify-content:center;overflow:hidden;">
+  <!-- halftone bg in cathay green -->
+  <div style="position:absolute;inset:0;background-image:radial-gradient(circle,var(--cathay) .5px,transparent .5px);background-size:5px 5px;opacity:.06;"></div>
+  <!-- faint smokestack silhouette, bottom-left -->
+  <svg style="position:absolute;bottom:-8px;left:-14px;width:66%;opacity:.05;z-index:1;" viewBox="0 0 200 120" fill="var(--ink)">
+    <rect x="10" y="40" width="14" height="80"/><rect x="34" y="20" width="14" height="100"/><rect x="58" y="55" width="12" height="65"/>
+    <ellipse cx="17" cy="35" rx="14" ry="8"/><ellipse cx="41" cy="14" rx="16" ry="9"/><ellipse cx="64" cy="50" rx="12" ry="7"/>
+  </svg>
+  <!-- big number -->
+  <div style="position:relative;z-index:2;text-align:center;">
+    <div class="XX" style="font-size:11rem;line-height:.78;letter-spacing:-.06em;color:var(--cathay);opacity:.82;">3.4</div>
+    <div class="OS" style="font-size:.7rem;color:var(--ink);opacity:.62;letter-spacing:.38em;margin-top:6px;">TONS CO&#8322;</div>
+    <div class="mo" style="font-size:.34rem;color:var(--ink);opacity:.45;letter-spacing:.18em;margin-top:14px;">ONE SEAT &middot; JFK &rarr; HKG &middot; ROUND TRIP</div>
+  </div>
+  <!-- bottom comparison stat in delta red -->
+  <div style="position:absolute;bottom:22px;left:50%;transform:translate(-50%,0);text-align:center;width:85%;">
+    <div style="height:1px;background:var(--delta);opacity:.35;margin:0 auto 6px;width:40%;"></div>
+    <div class="mo" style="font-size:.3rem;color:var(--delta);opacity:.6;letter-spacing:.14em;">ANNUAL 1.5&deg;C BUDGET / PERSON: 2.3 TONS</div>
+  </div>
+  <!-- corner fig mark -->
+  <div style="position:absolute;top:14px;left:14px;font-family:'Space Mono',monospace;font-size:.3rem;color:var(--ink);opacity:.3;letter-spacing:.18em;">FIG. 07 &bull; CARBON</div>
+</div>
+
+<!-- ═══ 20 · OFFSETS — CRITIQUE ═══ -->
+<div class="z" style="overflow:hidden;padding:36px 30px;">
+  <!-- misregistered big title -->
+  <div style="position:absolute;top:38px;left:32px;">
+    <div class="XX" style="position:absolute;font-size:3.3rem;line-height:.88;color:var(--delta);opacity:.28;transform:translate(3px,2px);">OFFSETS</div>
+    <div class="XX" style="position:relative;font-size:3.3rem;line-height:.88;color:var(--ink);">OFFSETS</div>
+    <!-- "= erasure" stricken out -->
+    <svg style="display:block;margin-top:6px;" width="240" height="38" viewBox="0 0 240 38">
+      <text x="0" y="28" font-family="Anton, sans-serif" font-size="30" fill="#111" opacity=".78" letter-spacing="1">= erasure</text>
+      <line x1="-4" y1="22" x2="220" y2="15" stroke="#C8102E" stroke-width="3.2" stroke-linecap="round" opacity=".85"/>
+    </svg>
+  </div>
+  <!-- indulgences stamp in delta red -->
+  <div style="position:absolute;top:50px;right:22px;transform:rotate(11deg);border:2.5px solid var(--delta);padding:3px 10px;opacity:.45;">
+    <span class="mo" style="font-size:.4rem;color:var(--delta);font-weight:700;letter-spacing:.14em;">INDULGENCES</span>
+  </div>
+  <!-- bullets filling middle/bottom band -->
+  <div style="position:absolute;top:210px;left:32px;right:30px;display:flex;flex-direction:column;gap:14px;">
+    <div class="mo" style="font-size:.44rem;color:var(--ink);line-height:1.45;letter-spacing:.02em;">
+      <span style="color:var(--cathay);font-weight:700;">&#9632;</span>
+      &nbsp;&nbsp;$15 at checkout does not grow a forest.
+    </div>
+    <div class="mo" style="font-size:.44rem;color:var(--ink);line-height:1.45;letter-spacing:.02em;">
+      <span style="color:var(--cathay);font-weight:700;">&#9632;</span>
+      &nbsp;&nbsp;A tree takes 40 years. Your flight takes 14 hours.
+    </div>
+    <div class="mo" style="font-size:.44rem;color:var(--ink);line-height:1.45;letter-spacing:.02em;">
+      <span style="color:var(--cathay);font-weight:700;">&#9632;</span>
+      &nbsp;&nbsp;Most credits are double-counted, over-issued, or already burned down.
+    </div>
+    <div class="mo" style="font-size:.44rem;color:var(--ink);line-height:1.45;letter-spacing:.02em;">
+      <span style="color:var(--cathay);font-weight:700;">&#9632;</span>
+      &nbsp;&nbsp;The airline sells you absolution, then charges for the aisle seat.
+    </div>
+  </div>
+  <!-- receipt footer -->
+  <div style="position:absolute;bottom:22px;left:30px;right:30px;border-top:1px dashed rgba(0,0,0,.3);padding-top:8px;display:flex;justify-content:space-between;">
+    <span class="mo" style="font-size:.3rem;color:var(--ink);opacity:.5;letter-spacing:.14em;">CO&#8322; OFFSET .......... $15.00</span>
+    <span class="mo" style="font-size:.3rem;color:var(--delta);opacity:.6;letter-spacing:.14em;font-weight:700;">CONSCIENCE &mdash; PAID</span>
+  </div>
+</div>
+
+<!-- ═══ 21 · THE LOOP — TREADMILL ═══ -->
+<div class="z" style="display:flex;align-items:center;justify-content:center;overflow:hidden;">
+  <!-- soft orange halo for warning -->
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:280px;height:280px;background:radial-gradient(circle,var(--choice) 0%,transparent 65%);opacity:.06;"></div>
+  <!-- circular loop -->
+  <svg viewBox="0 0 300 300" width="280" style="position:relative;z-index:1;">
+    <defs>
+      <path id="loop" d="M 150,34 A 116,116 0 1 1 149.9,34" fill="none"/>
+    </defs>
+    <circle cx="150" cy="150" r="116" fill="none" stroke="#111" stroke-width=".8" stroke-dasharray="2,3" opacity=".32"/>
+    <polygon points="262,155 250,145 250,165" fill="#C8102E" opacity=".75"/>
+    <text font-family="Oswald, sans-serif" font-size="13" fill="#111" opacity=".78" letter-spacing="4">
+      <textPath href="#loop" startOffset="2%">EARN MILES &#8226; FLY MORE &#8226; EARN MILES &#8226; FLY MORE &#8226; EARN MILES &#8226; FLY MORE &#8226;</textPath>
+    </text>
+    <text x="150" y="144" text-anchor="middle" font-family="Anton, sans-serif" font-size="36" fill="#C8102E" opacity=".85" letter-spacing="-1">THE</text>
+    <text x="150" y="178" text-anchor="middle" font-family="Anton, sans-serif" font-size="36" fill="#111" opacity=".82" letter-spacing="-1">LOOP</text>
+  </svg>
+  <!-- bottom italic line -->
+  <div style="position:absolute;bottom:28px;left:50%;transform:translateX(-50%);text-align:center;width:80%;">
+    <div class="se" style="font-size:.72rem;font-style:italic;color:var(--ink);opacity:.58;line-height:1.3;">You cannot earn<br>your way out.</div>
+  </div>
+  <!-- fig mark -->
+  <div style="position:absolute;top:14px;right:14px;font-family:'Space Mono',monospace;font-size:.3rem;color:var(--ink);opacity:.3;letter-spacing:.18em;">FIG. 09 &bull; TREADMILL</div>
+</div>
+
+
+<!-- ═══ IMAGE SOURCES — full-spread photos imported from Points_and_Miles_Zine_IMAGES.html ═══ -->
+<div class="zimg" data-credit="David Edelstein" style="background-image:url('views/david-edelstein-N4DbvTUDikw-unsplash.jpg');"></div>
+<div class="zimg" data-credit="Julie Halpert" style="background-image:url('views/ChatGPT%20Image%20Apr%2021,%202026,%2005_47_27%20PM.png');"></div>
+<div class="zimg" data-credit="Authors" style="background-image:url('views/DSC00390.jpg');"></div>
+<div class="zimg" data-credit="Authors" style="background-image:url('views/DSC07490-1-2.jpg');"></div>
+<div class="zimg" data-credit="Getty Images" style="background-image:url('views/ChatGPT%20Image%20Apr%2021,%202026,%2006_04_59%20PM.png');"></div>
+<div class="zimg" data-credit="Authors" style="background-image:url('views/DSC08491.jpg');background-position:75% center;"></div>
+<div class="zimg" data-credit="Authors" style="background-image:url('views/fef98c79d99b88d8c121dedd60722c6d.webp');"></div>
+<div class="zimg" data-credit="Authors" style="background-image:url('views/DSC09111.jpg');"></div>
+<div class="zimg" data-credit="Sebastian Leonhardt" style="background-image:url('views/Photo%20by%20a%20href=httpsunsplash.com@icarium_imageryutm_source=unsplash&amp;utm_medium=referral&amp;utm_content=creditCopyTextSebastian%20Leonhardta%20on%20a%20href=httpsunsplash.comphotoscity-buildings-on-mountain-near-body-of-water-du.jpg');"></div>
+<div class="zimg" data-credit="Authors" style="background-image:url('views/ChatGPT%20Image%20Apr%2021,%202026,%2006_06_09%20PM.png');"></div>
+<div class="zimg" data-credit="Xianyu Hao" data-layout="single" style="background-image:url('views/xianyu-hao-Ml8WeLdCnRU-unsplash.jpg');"></div>
+
+<!-- ═══ ARRANGER UI ═══ -->
+<div id="topbar">
+  <h1>Zine Arranger</h1>
+  <span id="counter">0 halves · 0 PDF pages</span>
+  <div class="spacer"></div>
+  <button class="secondary" id="btn-clear">Clear</button>
+  <button class="secondary" id="btn-default">Load Default</button>
+  <button id="btn-generate">Generate PDF</button>
+</div>
+
+<div class="panel" id="library-panel">
+  <h2>Library <small>— click to append to arrangement</small></h2>
+  <div class="lib-group">
+    <h3>Text pages (5×7.25 each)</h3>
+    <div class="lib-grid" id="lib-text"></div>
+  </div>
+  <div class="lib-group">
+    <h3>Image halves (full spreads split into L / R halves)</h3>
+    <div class="lib-grid" id="lib-img"></div>
+  </div>
+</div>
+
+<div class="panel" id="arr-panel">
+  <h2>Arrangement <small>— every 2 halves = 1 PDF page · use ‹ › to reorder, × to remove</small></h2>
+  <div class="arr-row" id="arrangement"></div>
+</div>
+
+<div id="preview-panel" class="panel">
+  <h2>Print preview <small>— what the PDF will look like (50% scale)</small></h2>
+  <!-- ═══ IMPOSED OUTPUT — populated at render time ═══ -->
+  <div id="output"></div>
+</div>
+
+<script>
+(function(){
+  /* ─── ARRANGER ─────────────────────────────────────────────────────
+     You arrange HALVES (one half = one 5×7.25 side of a landscape
+     11×8.5 PDF page). Every 2 consecutive halves become 1 PDF page.
+     Text sources are full half-pages; image sources are sliced into
+     left/right halves so a 10×7.25 panorama spans two arranged halves.
+     Click "Generate PDF" to open the browser's print dialog; pick
+     "Save as PDF" there. Layout is already set to 11×8.5 landscape
+     with .5in horizontal and .625in vertical margins (= 10×7.25 trim).
+     ─────────────────────────────────────────────────────────────── */
+
+  var textSrc = document.querySelectorAll('body > .z');
+  var imgSrc  = document.querySelectorAll('body > .zimg');
+
+  /* Arrangement is an array of entries:
+       {type:'text',  idx:N}             → text source N (0–17)
+       {type:'half',  idx:N, side:'L'}   → image N left half
+       {type:'half',  idx:N, side:'R'}   → image N right half
+       {type:'blank'}                    → cream blank page
+  */
+  var arrangement = [];
+
+  /* ─── build library items ─────────────────────────────────────── */
+  var libText = document.getElementById('lib-text');
+  var libImg  = document.getElementById('lib-img');
+
+  textSrc.forEach(function(node, i){
+    libText.appendChild(makeLibItem('T' + (i+1), function(){
+      return node.cloneNode(true);
+    }, {type:'text', idx:i}));
+  });
+
+  imgSrc.forEach(function(node, i){
+    if (node.getAttribute('data-layout') === 'single'){
+      libImg.appendChild(makeLibItem(String(i+1), function(){
+        return makeSingleSlot(node);
+      }, {type:'single', idx:i}));
+    } else {
+      ['L','R'].forEach(function(side){
+        libImg.appendChild(makeLibItem((i+1) + side, function(){
+          return makeHalfSlot(node, side);
+        }, {type:'half', idx:i, side:side}));
+      });
+    }
+  });
+
+  /* a single blank card, appendable anywhere */
+  libText.appendChild(makeLibItem('blank', function(){
+    var b = document.createElement('div');
+    b.className = 'z blank';
+    return b;
+  }, {type:'blank'}));
+
+  function makeLibItem(label, builder, payload){
+    var wrap = document.createElement('div');
+    wrap.className = 'lib-item';
+
+    var thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    thumb.appendChild(builder());
+    wrap.appendChild(thumb);
+
+    var lbl = document.createElement('div');
+    lbl.className = 'label';
+    lbl.textContent = label;
+    wrap.appendChild(lbl);
+
+    wrap.addEventListener('click', function(){
+      arrangement.push(Object.assign({label:label}, payload));
+      render();
+    });
+    return wrap;
+  }
+
+  /* build a 5in × 7.25in .z-half div whose background is the matching
+     half of a 10×7.25 panorama image source */
+  function makeHalfSlot(imgNode, side){
+    var slot = document.createElement('div');
+    slot.className = 'z z-half';
+    /* inherit the image url (and any custom bg-position like "75% center")
+       from the source, but enforce full-spread size and left/right cropping */
+    var srcStyle = imgNode.getAttribute('style') || '';
+    slot.style.cssText = srcStyle;
+    slot.style.width  = '5in';
+    slot.style.height = '7.25in';
+    slot.style.backgroundSize     = '10in 7.25in';
+    slot.style.backgroundRepeat   = 'no-repeat';
+    slot.style.backgroundPosition = (side === 'L' ? 'left' : 'right') + ' center';
+    slot.style.position = 'relative';
+    return slot;
+  }
+
+  /* build a 5in × 7.25in slot that shows the FULL image (cover-fit, not split).
+     used for images flagged data-layout="single" — they occupy one half of a
+     sheet rather than spanning a full 10×7.25 spread. */
+  function makeSingleSlot(imgNode){
+    var slot = document.createElement('div');
+    slot.className = 'z z-half';
+    var srcStyle = imgNode.getAttribute('style') || '';
+    slot.style.cssText = srcStyle;
+    slot.style.width  = '5in';
+    slot.style.height = '7.25in';
+    slot.style.backgroundSize     = 'cover';
+    slot.style.backgroundRepeat   = 'no-repeat';
+    slot.style.backgroundPosition = 'center center';
+    slot.style.position = 'relative';
+    return slot;
+  }
+
+  function buildFromEntry(entry){
+    if (entry.type === 'text'){
+      return textSrc[entry.idx].cloneNode(true);
+    } else if (entry.type === 'half'){
+      return makeHalfSlot(imgSrc[entry.idx], entry.side);
+    } else if (entry.type === 'single'){
+      return makeSingleSlot(imgSrc[entry.idx]);
+    } else {
+      var b = document.createElement('div');
+      b.className = 'z blank';
+      return b;
+    }
+  }
+
+  /* ─── render the arrangement strip + print-output preview ─────── */
+  var arrEl  = document.getElementById('arrangement');
+  var outEl  = document.getElementById('output');
+  var cntEl  = document.getElementById('counter');
+
+  function render(){
+    arrEl.innerHTML = '';
+    outEl.innerHTML = '';
+
+    arrangement.forEach(function(entry, i){
+      var item = document.createElement('div');
+      item.className = 'arr-item' + (i % 2 === 0 ? ' pair-start' : '');
+
+      var badge = document.createElement('div');
+      badge.className = 'pg-badge';
+      badge.textContent = (Math.floor(i/2) + 1) + (i%2===0 ? 'L' : 'R');
+      item.appendChild(badge);
+
+      var thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      thumb.appendChild(buildFromEntry(entry));
+      item.appendChild(thumb);
+
+      var ctrl = document.createElement('div');
+      ctrl.className = 'ctrl';
+      ctrl.innerHTML =
+        '<button data-act="left" title="move left">\u2039</button>' +
+        '<button data-act="right" title="move right">\u203A</button>' +
+        '<button data-act="x" class="x" title="remove">\u00D7</button>';
+      ctrl.addEventListener('click', function(e){
+        var a = e.target.getAttribute('data-act');
+        if (!a) return;
+        if (a === 'left'  && i > 0){
+          var t = arrangement[i-1]; arrangement[i-1] = arrangement[i]; arrangement[i] = t;
+        } else if (a === 'right' && i < arrangement.length - 1){
+          var t = arrangement[i];   arrangement[i] = arrangement[i+1]; arrangement[i+1] = t;
+        } else if (a === 'x'){
+          arrangement.splice(i, 1);
+        }
+        render();
+      });
+      item.appendChild(ctrl);
+
+      var lbl = document.createElement('div');
+      lbl.className = 'label';
+      lbl.textContent = entry.label;
+      item.appendChild(lbl);
+
+      arrEl.appendChild(item);
+    });
+
+    /* build .sheet previews (= the eventual PDF pages, one per pair) */
+    var n = arrangement.length;
+    var sheets = Math.max(1, Math.ceil(n / 2));
+    for (var i = 0; i < sheets; i++){
+      var sheet = document.createElement('div');
+      sheet.className = 'sheet';
+
+      var lbl = document.createElement('div');
+      lbl.className = 'sheet-label';
+      lbl.textContent = 'PDF ' + (i+1);
+      sheet.appendChild(lbl);
+
+      var spine = document.createElement('div');
+      spine.className = 'spine-guide';
+      sheet.appendChild(spine);
+
+      /* crop marks at the 10×7.25 trim corners */
+      var corners = [
+        {t:'.625in', l:'.5in'},  {t:'.625in', r:'.5in'},
+        {b:'.625in', l:'.5in'},  {b:'.625in', r:'.5in'}
+      ];
+      corners.forEach(function(c){
+        ['h','v'].forEach(function(axis){
+          var m = document.createElement('div');
+          m.className = 'crop ' + axis;
+          for (var k in c) m.style[k==='t'?'top':k==='b'?'bottom':k==='l'?'left':'right'] = c[k];
+          if (axis==='h'){
+            if (c.l) m.style.left  = 'calc(' + c.l + ' - .22in)';
+            if (c.r) m.style.right = 'calc(' + c.r + ' - .22in)';
+          } else {
+            if (c.t) m.style.top    = 'calc(' + c.t + ' - .22in)';
+            if (c.b) m.style.bottom = 'calc(' + c.b + ' - .22in)';
+          }
+          sheet.appendChild(m);
+        });
+      });
+
+      for (var j = 0; j < 2; j++){
+        var entry = arrangement[i*2 + j];
+        if (entry){
+          sheet.appendChild(buildFromEntry(entry));
+        } else {
+          var blank = document.createElement('div');
+          blank.className = 'z blank';
+          sheet.appendChild(blank);
+        }
+      }
+      outEl.appendChild(sheet);
+    }
+
+    cntEl.textContent = n + ' half' + (n===1?'':'s') +
+                        ' · ' + Math.ceil(n/2) + ' PDF page' +
+                        (Math.ceil(n/2)===1?'':'s');
+  }
+
+  /* ─── default arrangement (matches the 20-page single-sided version) ─── */
+  var defaultArrangement = [
+    {type:'text', idx:0,  label:'T1'},  {type:'text', idx:1,  label:'T2'},
+    {type:'half', idx:0, side:'L', label:'1L'}, {type:'half', idx:0, side:'R', label:'1R'},
+    {type:'text', idx:2,  label:'T3'},  {type:'text', idx:3,  label:'T4'},
+    {type:'half', idx:1, side:'L', label:'2L'}, {type:'half', idx:1, side:'R', label:'2R'},
+    {type:'text', idx:4,  label:'T5'},  {type:'text', idx:5,  label:'T6'},
+    {type:'half', idx:2, side:'L', label:'3L'}, {type:'half', idx:2, side:'R', label:'3R'},
+    {type:'text', idx:6,  label:'T7'},  {type:'text', idx:7,  label:'T8'},
+    {type:'half', idx:3, side:'L', label:'4L'}, {type:'half', idx:3, side:'R', label:'4R'},
+    {type:'text', idx:8,  label:'T9'},  {type:'text', idx:9,  label:'T10'},
+    {type:'half', idx:4, side:'L', label:'5L'}, {type:'half', idx:4, side:'R', label:'5R'},
+    {type:'text', idx:10, label:'T11'}, {type:'text', idx:11, label:'T12'},
+    {type:'half', idx:5, side:'L', label:'6L'}, {type:'half', idx:5, side:'R', label:'6R'},
+    {type:'text', idx:12, label:'T13'}, {type:'text', idx:13, label:'T14'},
+    {type:'half', idx:6, side:'L', label:'7L'}, {type:'half', idx:6, side:'R', label:'7R'},
+    {type:'text', idx:14, label:'T15'}, {type:'text', idx:15, label:'T16'},
+    {type:'half', idx:7, side:'L', label:'8L'}, {type:'half', idx:7, side:'R', label:'8R'},
+    {type:'text', idx:16, label:'T17'}, {type:'blank', label:'blank'},
+    {type:'half', idx:8, side:'L', label:'9L'}, {type:'half', idx:8, side:'R', label:'9R'},
+    {type:'half', idx:9, side:'L', label:'10L'},{type:'half', idx:9, side:'R', label:'10R'},
+    {type:'blank', label:'blank'}, {type:'text', idx:17, label:'T18'}
+  ];
+
+  /* ─── controls ─────────────────────────────────────────────────── */
+  document.getElementById('btn-clear').addEventListener('click', function(){
+    arrangement = [];
+    render();
+  });
+  document.getElementById('btn-default').addEventListener('click', function(){
+    arrangement = defaultArrangement.map(function(e){ return Object.assign({}, e); });
+    render();
+  });
+  document.getElementById('btn-generate').addEventListener('click', function(){
+    window.print();
+  });
+
+  /* boot with the default layout so there's something to see */
+  arrangement = defaultArrangement.map(function(e){ return Object.assign({}, e); });
+  render();
+})();
+</script>
+
+</body>
+</html>
